@@ -40,8 +40,6 @@ class Evolution(object):
 
 	def _integrand(self, rho_now):
 
-		# rho_0 = 0.5*np.identity(4)
-		# return 1.j*self._commutator(rho_now, self.H) - (rho_now - rho_0)/self.tau
 		return 1.j*self._commutator(rho_now, self.H)
 
 	def _commutator(self, A, B):
