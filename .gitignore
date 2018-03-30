@@ -2,4 +2,7 @@
 .DS_Store
 
 # Compiled files
-.pyc
+*.pyc
+
+# Output files
+*.pdf
