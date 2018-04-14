@@ -23,6 +23,10 @@ class TestEllipse(unittest.TestCase):
 
     def testPerimeter(self):
         self.assertAlmostEqual(Ellipse.perimeter(1.0, 1.0), 2.0*np.pi)
+
+    def testChord(self):
+        self.assertAlmostEqual(Ellipse.chord(0.0, np.pi, 1.0, 3.0), 2.0)
+        self.assertAlmostEqual(Ellipse.chord(0.0, np.pi/2.0, 1.0, 3.0), np.sqrt(10.0))
         
 if __name__ == '__main__':
     unittest.main()
