@@ -1,9 +1,8 @@
 from ellipse import *
 import numpy as np
 
-# A general anisotropic band structure 
-# described by elliptic equations at low energy 
-# Note: All variables are in atomic units (AU). 
+# A general elliptic band structure
+# all variables are in atomic units A.U.
 class Band(object):
 
     def __init__(self, 
@@ -31,17 +30,13 @@ class Band(object):
         if abs(self.energy) <= self.eg/2.0:
             raise ValueError('invalid energy level inside the band gap.')
         elif self.energy > self.eg/2.0:
-            band = 1
+            self.band = 1
         else:
-            band = -1
+            self.band = -1
         # major and minor axes of elliptic Fermi contour
         mx, my = self.getEffectiveMass()
-        a = np.sqrt(mx*(abs(self.energy) - self.eg/2.0))
-        b = np.sqrt(my*(abs(self.energy) - self.eg/2.0))
-        # update
-        self.band = band
-        self.a = a
-        self.b = b
+        self.a = np.sqrt(mx*(abs(self.energy) - self.eg/2.0))
+        self.b = np.sqrt(my*(abs(self.energy) - self.eg/2.0))
 
     def energyMomentum(self, arg_1, arg_2, band, coordinate='polar'): 
         if coordinate == 'polar':
