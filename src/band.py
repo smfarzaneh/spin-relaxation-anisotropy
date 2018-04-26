@@ -1,8 +1,10 @@
-from ellipse import *
 import numpy as np
 
+from ellipse import *
+from pauli import *
+
 # A general elliptic band structure
-# all variables are in atomic units A.U.
+# all quantities are in atomic units A.U.
 class Band(object):
 
     def __init__(self, 
@@ -60,23 +62,25 @@ class Band(object):
         ky = Ellipse.coordinateX(theta, self.a, self.b)
         return kx, ky
 
+    def spinOrbit(self, theta):
+        omega_x, omega_y = self.fieldRashba(theta)
+        return omega_x*Pauli.x() + omega_y*Pauli.y()
+
     def fieldRashba(self, theta):
         if isinstance(theta, (list, tuple, np.ndarray)):
-            omega = np.zeros((3, len(theta)))
-        else: 
-            omega = np.zeros((3, 1))
+            omega_x = np.zeros_like(theta)
+            omega_y = np.zeros_like(theta)
         k = Ellipse.normPolar(theta, self.a, self.b)
         mx, my = self.getEffectiveMass()
-        omega[0, :] = self.lambdar/my*k*np.sin(theta)
-        omega[1, :] = -self.lambdar/mx*k*np.cos(theta)
-        return omega
+        omega_x = self.lambdar/my*k*np.sin(theta)
+        omega_y = -self.lambdar/mx*k*np.cos(theta)
+        return omega_x, omega_y
 
     def gradientEnergy(self, theta):
         term_1 = Ellipse.normPolar(theta, self.a, self.b)
         term_2 = 2.0*abs(self.energy) - self.eg
         term_3 = np.sqrt(np.cos(theta)**2/self.a**4 + np.sin(theta)**2/self.b**4)
-        gradient = term_1*term_2*term_3
-        return gradient
+        return term_1*term_2*term_3
 
     def getEffectiveMass(self):
         if self.band == 1:
