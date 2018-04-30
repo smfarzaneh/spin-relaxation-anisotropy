@@ -12,11 +12,11 @@ class Solver(object):
         self.density_avg = density_avg
         self.num_grid = num_grid
         self.num_iteration = num_iteration
-        self.d_theta = 2.0*np.pi/self.num_grid
-        self.theta_vals = np.linspace(0.0 + self.d_theta/2.0, 2.0*np.pi - self.d_theta/2.0, self.num_grid)
         self.reset()
 
     def reset(self):
+        self.d_theta = 2.0*np.pi/self.num_grid
+        self.theta_vals = np.linspace(0.0 + self.d_theta/2.0, 2.0*np.pi - self.d_theta/2.0, self.num_grid)
         self.density_vals = np.zeros((self.density_avg.matrix.size, self.num_grid), dtype=np.complex)
     
     def iterate(self):
@@ -89,9 +89,9 @@ class Solver(object):
         return 1.0j/2.0*(np.dot(density_matrix, spin_orbit) - np.dot(spin_orbit, density_matrix))
 
     def spinPerturbation(self):
-        spin_x = np.zeros(self.num_grid, dtype=np.complex) 
-        spin_y = np.zeros(self.num_grid, dtype=np.complex) 
-        spin_z = np.zeros(self.num_grid, dtype=np.complex) 
+        spin_x = np.zeros(self.num_grid, dtype=np.float) 
+        spin_y = np.zeros(self.num_grid, dtype=np.float) 
+        spin_z = np.zeros(self.num_grid, dtype=np.float) 
         for i in range(self.num_grid):
             rho_p = np.reshape(self.density_vals[:, i], (2, 2))
             spin_x[i] = np.real(np.trace(np.dot(rho_p, Pauli.x())))
