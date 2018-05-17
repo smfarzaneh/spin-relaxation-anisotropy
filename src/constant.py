@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.constants as sc
 
-class Constant(object):
+class Constant():
     eps0 = sc.epsilon_0 # permittivity of free space
     hbar = sc.hbar # reduced Planck constant
     e = sc.e # unit electric charge
