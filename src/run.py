@@ -19,16 +19,13 @@ from constant import *
 from band import *
 from scatterer import *
 from density import *
-# from plot import *
 from rw import *
 
 def main():
     solver = setupSolver()
-    # plotSpinPerturbation(solver)
+    taskPerturbation(solver)
     # spinRelaxationAnisotropy(solver)
-    plotSpinRelaxationAnisotropy()
     # spinRelaxationVsEnergy(solver)
-    # plotSpinRelaxationVsEnergy()
     # spinRelaxationVsPolarization(solver)
     # plotSpinRelaxationVsPolarization()
     # plotSpinRelaxationVsPolarization2D()
@@ -61,78 +58,29 @@ def compute(solver):
     print(str(solver.num_iteration) + ' iterations, ' + str(solver.num_grid) + ' grid points.')
     solver.iterate()
 
-def plotSpinPerturbation(solver):
+def taskPerturbation(solver):
     solver.num_grid = 75
-    solver.num_iteration = 400
-    solver.reset()
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    # isotropic
     solver.band.mxc = 1.0
     solver.band.myc = 1.0
-    solver.band.updateEnergyDependentParameters()
-    solver.reset()
-    compute(solver)
-    spin_x, spin_y, spin_z = solver.spinPerturbation()
-    kx = Ellipse.coordinateX(solver.theta_vals, solver.band.a, solver.band.b)
-    ky = Ellipse.coordinateY(solver.theta_vals, solver.band.a, solver.band.b)
-    ax.scatter(kx, ky, spin_z, color='k', facecolor='none', marker='o', label=r'$m_y/m_x=1.0$')
+    kx, ky, spin_z = perturbation(solver)
+    data = np.stack((kx, ky, spin_z), axis=0)
+    RW.saveData(data, 'perturbation-iso.out')
+    # anisotropic
     solver.band.mxc = 0.1
     solver.band.myc = 1.0
-    solver.band.updateEnergyDependentParameters()
+    kx, ky, spin_z = perturbation(solver)
+    data = np.stack((kx, ky, spin_z), axis=0)
+    RW.saveData(data, 'perturbation-aniso.out')
+
+def perturbation(solver):
     solver.reset()
-    solver.num_iteration = 1
+    solver.band.updateEnergyDependentParameters()
     compute(solver)
-    solver.num_iteration = 400
-    spin_x, spin_y, spin_z = solver.spinPerturbation()
+    _, _, spin_z = solver.spinPerturbation()
     kx = Ellipse.coordinateX(solver.theta_vals, solver.band.a, solver.band.b)
     ky = Ellipse.coordinateY(solver.theta_vals, solver.band.a, solver.band.b)
-    # ax.scatter(kx, ky, spin_z, color='k', facecolor='none', marker='s', label=r'$m_y/m_x=0.1$')
-    solver.band.mxc = 0.1
-    solver.band.myc = 1.0
-    solver.band.updateEnergyDependentParameters()
-    solver.reset()
-    compute(solver)
-    spin_x, spin_y, spin_z = solver.spinPerturbation()
-    kx = Ellipse.coordinateX(solver.theta_vals, solver.band.a, solver.band.b)
-    ky = Ellipse.coordinateY(solver.theta_vals, solver.band.a, solver.band.b)
-    ax.scatter(kx, ky, spin_z, color='k', facecolor='none', marker='^', label=r'$m_y/m_x=10.0$')
-    # figure settings
-    ax.legend(loc=2, bbox_to_anchor=(0.1, 1.05))
-    ax.set_xlabel(r'$k_x$ $[1/a_0]$')
-    ax.set_ylabel(r'$k_y$ $[1/a_0]$')
-    ax.text(0.07, 0.07, 0.00018, r'$s^{\prime}_z$ $[\lambda^2_\mathrm{R}/n_\mathrm{i}]$')
-    ax.xaxis.labelpad = -7 
-    ax.yaxis.labelpad = 2 
-    ax.xaxis.set_rotate_label(False)
-    ax.yaxis.set_rotate_label(False)
-    ax.zaxis.set_rotate_label(False)
-    ax.set_xlim([-0.075, 0.075])
-    ax.set_ylim([-0.075, 0.075])
-    ax.set_zlim([-0.00015, 0.00015])
-    ax.xaxis._axinfo['tick']['inward_factor'] = 0
-    ax.xaxis._axinfo['tick']['outward_factor'] = 0.4
-    ax.yaxis._axinfo['tick']['inward_factor'] = 0
-    ax.yaxis._axinfo['tick']['outward_factor'] = 0.4
-    ax.zaxis._axinfo['tick']['inward_factor'] = 0
-    ax.zaxis._axinfo['tick']['outward_factor'] = 0.4
-    ax.xaxis.set_major_locator(MultipleLocator(0.05))
-    ax.yaxis.set_major_locator(MultipleLocator(0.05))
-    ax.zaxis.set_major_locator(MultipleLocator(0.0001))
-    ax.tick_params(axis='x', which='major', pad=-5)
-    ax.tick_params(axis='y', which='major', pad=-4)
-    ax.tick_params(axis='z', which='major', pad=3)
-    # ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%0.0e'))
-    # ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%0.0e'))
-    # ax.zaxis.set_major_formatter(ticker.FormatStrFormatter('%0.0e'))
-    # ax.grid(False)
-    ax.view_init(elev=30, azim=-60)
-    # ax.xaxis.pane.set_edgecolor('k')
-    # ax.yaxis.pane.set_edgecolor('k')
-    ax.xaxis.pane.fill = False
-    ax.yaxis.pane.fill = False
-    ax.zaxis.pane.fill = False
-    fig.set_size_inches(2.23, 2.23)
-    RW.saveFigure(fig, 'perturbation.pdf')
+    return kx, ky, spin_z
 
 def plotRashbaField(solver):
     x_vals = Ellipse.coordinateX(solver.theta_vals, solver.band.a, solver.band.b)
@@ -276,26 +224,6 @@ def spinRelaxationVsEnergy(solver):
     data = np.vstack((energy_level, rate_s))
     RW.saveData(data, 'energy.out')
 
-def plotSpinRelaxationVsEnergy():
-    data = RW.loadData('energy.out')
-    energy_level = data[0, :]/Constant.e*Constant.Ry # AU to eV
-    rate_xx = data[1, :]/Constant.a0**2
-    rate_yy = data[5, :]/Constant.a0**2
-    rate_zz = data[9, :]/Constant.a0**2
-    fig, ax = plt.subplots()
-    ax.plot(energy_level - 0.5, rate_xx, c='k', marker='o', markerfacecolor='None', label=r'$1/\tau_{s,xx}$', linewidth=1.0)
-    ax.plot(energy_level - 0.5, rate_yy, c='k', marker='s', markerfacecolor='None', label=r'$1/\tau_{s,yy}$', linewidth=1.0)
-    ax.plot(energy_level - 0.5, rate_zz, c='k', marker='^', markerfacecolor='None', label=r'$1/\tau_{s,zz}$', linewidth=1.0)
-    ax.legend()
-    ax.set_yscale('log')
-    ax.set_xlabel(r'$E - E_\mathrm{g}/2$ [eV]')
-    ax.set_ylabel(r'$1/\tau_{s,\alpha\alpha}$ $[\lambda^2_\mathrm{R}/n_\mathrm{i}]$')
-    ax.grid(linestyle=':', which="major", axis='x')
-    ax.grid(linestyle=':', which="major", axis='y')
-    fig.suptitle('(c))', fontsize=8, fontweight='bold', verticalalignment='bottom')
-    fig.set_size_inches(2.23, 2.23)
-    RW.saveFigure(fig, 'energy.pdf')
-
 def spinRelaxationAnisotropy(solver):
     num_grid = 5
     mx = np.logspace(0.0, -2.0, 2*num_grid + 1)
@@ -332,27 +260,6 @@ def spinRelaxationAnisotropy(solver):
     # save to file
     data = np.vstack((ratio, rate_s))
     RW.saveData(data, 'anisotropy-highenergy.out')
-    
-def plotSpinRelaxationAnisotropy():
-    data = RW.loadData('anisotropy.out')
-    mass_ratio = data[0, :]
-    rate_xx = data[1, :]
-    rate_yy = data[5, :]
-    rate_zz = data[9, :]
-    fig, ax = plt.subplots(1,1)
-    ax.plot(mass_ratio, rate_xx/rate_yy, c='k', marker='o', markerfacecolor='None', label=r'$\tau_{s,yy}/\tau_{s,xx}$')
-    ax.plot(mass_ratio, rate_yy/rate_zz, c='k', marker='s', markerfacecolor='None', label=r'$\tau_{s,zz}/\tau_{s,yy}$')
-    ax.plot(mass_ratio, rate_zz/rate_xx, c='k', marker='^', markerfacecolor='None', label=r'$\tau_{s,xx}/\tau_{s,zz}$')
-    ax.legend(loc=9)
-    ax.set_xscale('log')
-    ax.set_yscale('log')
-    ax.set_xlabel(r'$m_y/m_x$')
-    ax.set_ylabel(r'$\tau_{s,\alpha\alpha}/\tau_{s,\beta\beta}$')
-    ax.grid(linestyle=':', which="major", axis='x')
-    ax.grid(linestyle=':', which="both", axis='y')
-    ax.set_title('(b)')
-    fig.set_size_inches(2.23, 2.23)
-    RW.saveFigure(fig, 'anisotropy.pdf')
 
 # run
 main()
