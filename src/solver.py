@@ -34,6 +34,11 @@ class Solver(object):
             density_next[:, i] = np.reshape(rho_p, (4, ))
         return density_next
 
+    def spinRelaxationSingle(self):
+        density_time_derivative = -1.0*self._timeDerivative() # minus sign for exponential decay equation
+        rate_s = np.real(np.trace(np.dot(density_time_derivative, self.density_avg.spin)))
+        return rate_s
+
     def spinRelaxationRate(self):
         density_time_derivative = -1.0*self._timeDerivative() # minus sign for exponential decay equation
         rate_x = np.real(np.trace(np.dot(density_time_derivative, Pauli.x())))
@@ -87,7 +92,7 @@ class Solver(object):
     def _precession(self, theta_index, density_matrix):
         spin_orbit = self.band.spinOrbit(self.theta_vals[theta_index])
         return 1.0j/2.0*(np.dot(density_matrix, spin_orbit) - np.dot(spin_orbit, density_matrix))
-
+    
     def spinPerturbation(self):
         spin_x = np.zeros(self.num_grid, dtype=np.float) 
         spin_y = np.zeros(self.num_grid, dtype=np.float) 
