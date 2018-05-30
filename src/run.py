@@ -22,10 +22,11 @@ from density import *
 from rw import *
 
 def main():
-    solver = setupSolver()
-    taskPerturbation(solver)
-    # spinRelaxationAnisotropy(solver)
-    # spinRelaxationVsEnergy(solver)
+    solver_coulomb = setupSolver('coulomb')
+    solver_defect = setupSolver('defect')
+    # taskPerturbation(solver)
+    # anisotropy(solver_defect)
+    energy(solver_defect)
     # spinRelaxationVsPolarization(solver)
     # plotSpinRelaxationVsPolarization()
     # plotSpinRelaxationVsPolarization2D()
@@ -46,9 +47,9 @@ def setupSpinPolarization(s_x = 1.0, s_y = 0.0, s_z = 0.0):
     norm = np.sqrt(s_x**2 + s_y**2 + s_z**2)
     return Density(s_x/norm, s_y/norm, s_z/norm) 
 
-def setupSolver():
+def setupSolver(potential):
     band_structure = setupBandStructure()
-    scatterer = Scatterer()
+    scatterer = Scatterer(potential_type=potential)
     density = setupSpinPolarization()
     solver = Solver(band_structure, scatterer, density)
     return solver
@@ -60,18 +61,19 @@ def compute(solver):
 
 def taskPerturbation(solver):
     solver.num_grid = 75
+    solver.num_iteration = 1
     # isotropic
     solver.band.mxc = 1.0
     solver.band.myc = 1.0
     kx, ky, spin_z = perturbation(solver)
     data = np.stack((kx, ky, spin_z), axis=0)
-    RW.saveData(data, 'perturbation-iso.out')
+    RW.saveData(data, 'perturbation-iso-defect.out')
     # anisotropic
     solver.band.mxc = 0.1
     solver.band.myc = 1.0
     kx, ky, spin_z = perturbation(solver)
     data = np.stack((kx, ky, spin_z), axis=0)
-    RW.saveData(data, 'perturbation-aniso.out')
+    RW.saveData(data, 'perturbation-aniso-defect.out')
 
 def perturbation(solver):
     solver.reset()
@@ -188,8 +190,14 @@ def plotSpinRelaxationVsPolarization():
     fig.set_size_inches(3.5, 3.5)
     RW.saveFigure(fig, 'polarization-aniso.pdf')
 
-def spinRelaxationVsEnergy(solver):
-    solver.num_iteration = 400
+def energy(solver):
+    if solver.scatterer.type == 'coulomb':
+        filename = 'energy.out'
+    elif solver.scatterer.type == 'defect':
+        solver.num_iteration = 1
+        filename = 'energy-defect.out'
+    else: 
+        raise ValueError('invalid scattering potential.')
     solver.band.mxc = 1.26 # Black Phosphorus 
     solver.band.myc = 0.17 # Black Phosphorus
     solver.band.updateEnergyDependentParameters()
@@ -222,9 +230,16 @@ def spinRelaxationVsEnergy(solver):
     print('z-polarized done.')
     # save to file
     data = np.vstack((energy_level, rate_s))
-    RW.saveData(data, 'energy.out')
+    RW.saveData(data, filename)
 
-def spinRelaxationAnisotropy(solver):
+def anisotropy(solver):
+    if solver.scatterer.type == 'coulomb':
+        filename = 'anisotropy.out'
+    elif solver.scatterer.type == 'defect':
+        solver.num_iteration = 1
+        filename = 'anisotropy-defect.out'
+    else: 
+        raise ValueError('invalid scattering potential.')
     num_grid = 5
     mx = np.logspace(0.0, -2.0, 2*num_grid + 1)
     my = np.logspace(-2.0, 0.0, 2*num_grid + 1)
@@ -259,7 +274,7 @@ def spinRelaxationAnisotropy(solver):
     print('z-polarized done.')
     # save to file
     data = np.vstack((ratio, rate_s))
-    RW.saveData(data, 'anisotropy-highenergy.out')
+    RW.saveData(data, filename)
 
 # run
 main()
