@@ -4,7 +4,6 @@ from ellipse import *
 from pauli import *
 
 # A general elliptic band structure
-# all quantities are in atomic units A.U.
 class Band(object):
 
     def __init__(self, 
@@ -28,17 +27,15 @@ class Band(object):
         self.updateEnergyDependentParameters()
 
     def updateEnergyDependentParameters(self):
-        # conduction or valance band
         if abs(self.energy) <= self.eg/2.0:
             raise ValueError('invalid energy level inside the band gap.')
-        elif self.energy > self.eg/2.0:
+        elif self.energy > self.eg/2.0: # conduction band
             self.band = 1
-        else:
+        else: # valance band
             self.band = -1
-        # major and minor axes of elliptic Fermi contour
         mx, my = self.getEffectiveMass()
-        self.a = np.sqrt(mx*(abs(self.energy) - self.eg/2.0))
-        self.b = np.sqrt(my*(abs(self.energy) - self.eg/2.0))
+        self.a = np.sqrt(mx*(abs(2.0*self.energy) - self.eg))
+        self.b = np.sqrt(my*(abs(2.0*self.energy) - self.eg))
 
     def energyMomentum(self, arg_1, arg_2, band, coordinate='polar'): 
         if coordinate == 'polar':
@@ -50,16 +47,16 @@ class Band(object):
 
     def _energyCartesian(self, kx, ky):
         if self.band == 1:
-            return self.eg/2.0 + (np.power(kx, 2)/self.mxc + np.power(ky, 2)/self.myc)
+            return self.eg/2.0 + (np.power(kx, 2)/(2.0*self.mxc) + np.power(ky, 2)/(2.0*self.myc))
         else:
-            return -self.eg/2.0 - (np.power(kx, 2)/self.mxv - np.power(ky, 2)/self.myv)
+            return -self.eg/2.0 - (np.power(kx, 2)/(2.0*self.mxv) - np.power(ky, 2)/(2.0*self.myv))
         
     def _polarToCartesian(self, k, theta):
         return k*np.cos(theta), k*np.sin(theta)
 
     def momentum(self, theta):
         kx = Ellipse.coordinateX(theta, self.a, self.b)
-        ky = Ellipse.coordinateX(theta, self.a, self.b)
+        ky = Ellipse.coordinateY(theta, self.a, self.b)
         return kx, ky
 
     def spinOrbit(self, theta):
@@ -77,6 +74,12 @@ class Band(object):
         return omega_x, omega_y
 
     def gradientEnergy(self, theta):
+        kx, ky = self.momentum(theta)
+        mx, my = self.getEffectiveMass()
+        gradient_norm = np.sqrt(kx**2/mx**2 + ky**2/my**2)
+        return gradient_norm
+
+    def deprecatedGradientEnergy(self, theta):
         term_1 = Ellipse.normPolar(theta, self.a, self.b)
         term_2 = 2.0*abs(self.energy) - self.eg
         term_3 = np.sqrt(np.cos(theta)**2/self.a**4 + np.sin(theta)**2/self.b**4)
