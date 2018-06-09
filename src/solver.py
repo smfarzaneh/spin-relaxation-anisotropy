@@ -29,8 +29,8 @@ class Solver(object):
         for i in range(self.num_grid):
             precession = self._precession(i, self.density_avg.matrix)
             collision = self._averageCollision(i)
-            rate_avg = self._averageTransitionRate(i)
-            rho_p = (precession + collision)/rate_avg
+            rate_tot = self.sumTransitionRate(i)
+            rho_p = (precession + collision)/rate_tot
             density_next[:, i] = np.reshape(rho_p, (4, ))
         return density_next
 
@@ -67,7 +67,7 @@ class Solver(object):
         collision[0, 1] = Integral.trapz(self.theta_vals, w*self.density_vals[1, :])
         collision[1, 0] = Integral.trapz(self.theta_vals, w*self.density_vals[2, :])
         collision[1, 1] = Integral.trapz(self.theta_vals, w*self.density_vals[3, :])
-        return collision
+        return 1.0/(2.0*np.pi)*collision
 
     def _avergeDensityPerturbation(self):
         average = np.zeros_like(self.density_vals[:, 0])
@@ -77,15 +77,14 @@ class Solver(object):
         average[3] = Integral.trapz(self.theta_vals, np.real(self.density_vals[3, :]))
         return average
 
-    def _averageTransitionRate(self, theta_index):
+    def sumTransitionRate(self, theta_index):
         w = self._transitionRate(theta_index)
-        return Integral.trapz(self.theta_vals, w)
+        return 1.0/(2.0*np.pi)*Integral.trapz(self.theta_vals, w)
 
     def _transitionRate(self, theta_index):
         norm_tangent = Ellipse.normTangent(self.theta_vals, self.band.a, self.band.b)
         q = Ellipse.chord(self.theta_vals[theta_index], self.theta_vals, self.band.a, self.band.b)
         potential_squared = self.scatterer.potentialFourier(q)**2
-        potential_squared[theta_index] = 0.0
         gradient_reciprocal = np.reciprocal(self.band.gradientEnergy(self.theta_vals))
         return norm_tangent*potential_squared*gradient_reciprocal
 
