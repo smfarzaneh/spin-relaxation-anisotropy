@@ -24,22 +24,27 @@ from rw import *
 def main():
     solver_coulomb = setupSolver('coulomb')
     solver_defect = setupSolver('defect')
-    # taskPerturbation(solver)
+    # taskPerturbationCoulomb(solver_coulomb)
+    # taskPerturbationDefect(solver_defect)
+    # anisotropy(solver_coulomb)
     # anisotropy(solver_defect)
-    energy(solver_defect)
-    # spinRelaxationVsPolarization(solver)
+    # collisionRate(solver_coulomb)
+    # collisionRate(solver_defect)
+    # energy(solver_coulomb)
+    # energy(solver_defect)
+    # spinRelaxationVsPolarization(solver_coulomb, grid_num=20)
     # plotSpinRelaxationVsPolarization()
     # plotSpinRelaxationVsPolarization2D()
-    # plotRashbaField(solver)
+    plotRashbaField(solver_coulomb)
     # num_cores = multiprocessing.cpu_count()
     # print(num_cores)
     
 def setupBandStructure():
-    band_gap = 1.0*Constant.e/Constant.Ry # eV to AU
+    band_gap = 1.0*Constant.e/Constant.Eh # eV to AU
     mx = 1.0
     my = 0.1
     rashba_strength = 1.0
-    energy_level = 0.6*Constant.e/Constant.Ry # eV to AU
+    energy_level = 0.6*Constant.e/Constant.Eh # eV to AU
     band_structure = Band(band_gap, mx, mx, my, my, rashba_strength, energy_level)
     return band_structure
 
@@ -49,7 +54,7 @@ def setupSpinPolarization(s_x = 1.0, s_y = 0.0, s_z = 0.0):
 
 def setupSolver(potential):
     band_structure = setupBandStructure()
-    scatterer = Scatterer(potential_type=potential)
+    scatterer = Scatterer(potential_type=potential, coulomb_depth=10.0, defect_radius=100.0, defect_amplitude=10.0*Constant.e/Constant.Eh)
     density = setupSpinPolarization()
     solver = Solver(band_structure, scatterer, density)
     return solver
@@ -59,21 +64,41 @@ def compute(solver):
     print(str(solver.num_iteration) + ' iterations, ' + str(solver.num_grid) + ' grid points.')
     solver.iterate()
 
-def taskPerturbation(solver):
+def taskPerturbationDefect(solver):
     solver.num_grid = 75
-    solver.num_iteration = 1
+    solver.num_iteration = 200
+    solver.scatterer.sigma = 10.0
     # isotropic
     solver.band.mxc = 1.0
     solver.band.myc = 1.0
     kx, ky, spin_z = perturbation(solver)
     data = np.stack((kx, ky, spin_z), axis=0)
-    RW.saveData(data, 'perturbation-iso-defect.out')
+    RW.saveData(data, 'perturbation-defect-short-iso.out')
     # anisotropic
+    solver.num_iteration = 200
+    solver.scatterer.sigma = 10.0
     solver.band.mxc = 0.1
     solver.band.myc = 1.0
     kx, ky, spin_z = perturbation(solver)
     data = np.stack((kx, ky, spin_z), axis=0)
-    RW.saveData(data, 'perturbation-aniso-defect.out')
+    RW.saveData(data, 'perturbation-defect-short-aniso.out')
+
+def taskPerturbationCoulomb(solver):
+    solver.num_grid = 75
+    solver.num_iteration = 200
+    # isotropic
+    solver.band.mxc = 1.0
+    solver.band.myc = 1.0
+    kx, ky, spin_z = perturbation(solver)
+    data = np.stack((kx, ky, spin_z), axis=0)
+    RW.saveData(data, 'perturbation-iso-coulomb.out')
+    # anisotropic
+    solver.num_iteration = 200
+    solver.band.mxc = 0.1
+    solver.band.myc = 1.0
+    kx, ky, spin_z = perturbation(solver)
+    data = np.stack((kx, ky, spin_z), axis=0)
+    RW.saveData(data, 'perturbation-aniso-coulomb.out')
 
 def perturbation(solver):
     solver.reset()
@@ -85,24 +110,40 @@ def perturbation(solver):
     return kx, ky, spin_z
 
 def plotRashbaField(solver):
-    x_vals = Ellipse.coordinateX(solver.theta_vals, solver.band.a, solver.band.b)
-    y_vals = Ellipse.coordinateY(solver.theta_vals, solver.band.a, solver.band.b)
+    rcParams['font.size'] = 24
     # plot Fermi contour
-    fig, ax = plt.subplots()
-    ax.plot(x_vals, y_vals, zorder=1, color='#57068c')
-    # plot Rashba field
-    theta = np.array([0.0, np.pi/16.0, np.pi/8.0, np.pi/4.0, np.pi/2.0, 3.0*np.pi/4.0, 7.0*np.pi/8.0, 15.0*np.pi/16.0])
-    theta = np.hstack((theta, theta + np.pi))
-    for i in range(len(theta)):
-        x = Ellipse.coordinateX(theta[i], solver.band.a, solver.band.b)
-        y = Ellipse.coordinateY(theta[i], solver.band.a, solver.band.b)
-        dx, dy = solver.band.fieldRashba(theta[i])
-        ax.arrow(x, y, dx/10., dy/10., width=0.0005, fc='#799a05', ec='#799a05')
-    ax.set_xlabel(r'$k_x$ $[1/a_0]$')
-    ax.set_ylabel(r'$k_y$ $[1/a_0]$')
-    ax.set_xlim((-0.1, 0.1))
-    ax.set_ylim((-0.03, 0.03))
-    fig.set_size_inches(3.5, 1.05)
+    fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True)
+    for ax in [ax1, ax2]:
+        if ax == ax1:
+            solver.band.mxc = 1.0
+            solver.band.myc = 1.0
+            theta = np.linspace(0.0, 2.0*np.pi, 16)
+            ax.set_title(r'$m_y/m_x = 1.0$')
+        else:
+            solver.band.mxc = 2.0
+            solver.band.myc = 0.5
+            theta = np.array([0.0, np.pi/16.0, np.pi/8.0, np.pi/4.0, np.pi/2.0, 3.0*np.pi/4.0, 7.0*np.pi/8.0, 15.0*np.pi/16.0])
+            theta = np.hstack((theta, theta + np.pi))
+            ax.set_title(r'$m_y/m_x = 4.0$')
+        solver.band.updateEnergyDependentParameters()
+        solver.reset()
+        x_vals = Ellipse.coordinateX(solver.theta_vals, solver.band.a, solver.band.b)
+        y_vals = Ellipse.coordinateY(solver.theta_vals, solver.band.a, solver.band.b)
+        ax.plot(x_vals, y_vals, zorder=1, color='#799a05', linewidth=4)
+        # plot Rashba field
+        for i in range(len(theta)):
+            x = Ellipse.coordinateX(theta[i], solver.band.a, solver.band.b)
+            y = Ellipse.coordinateY(theta[i], solver.band.a, solver.band.b)
+            dx, dy = solver.band.fieldRashba(theta[i])
+            ax.arrow(x, y, dx/4., dy/4., width=0.002, fc='#57068c', ec='#57068c')
+        ax.set_xlabel(r'$k_x$ $[1/a_0]$')
+        ax.set_xlim((-0.15, 0.15))
+        ax.set_ylim((-0.15, 0.15))
+        ax.xaxis.set_major_locator(MultipleLocator(0.1))
+        ax.yaxis.set_major_locator(MultipleLocator(0.1))
+    ax1.set_ylabel(r'$k_y$ $[1/a_0]$')
+    fig.subplots_adjust(wspace=0)
+    fig.set_size_inches(12, 6)
     RW.saveFigure(fig, 'rashba.pdf')
 
 def process(arg):
@@ -190,11 +231,34 @@ def plotSpinRelaxationVsPolarization():
     fig.set_size_inches(3.5, 3.5)
     RW.saveFigure(fig, 'polarization-aniso.pdf')
 
+def collisionRate(solver, num_grid=100):
+    if solver.scatterer.type == 'coulomb':
+        filename = 'collision-coulomb.out'
+    elif solver.scatterer.type == 'defect':
+        solver.num_iteration = 100
+        filename = 'collision-defect.out'
+    else: 
+        raise ValueError('invalid scattering potential.')
+    solver.band.mxc = 1.26 # Black Phosphorus 
+    solver.band.myc = 0.17 # Black Phosphorus
+    solver.band.updateEnergyDependentParameters()
+    solver.num_grid = num_grid
+    solver.reset()
+    num_theta = len(solver.theta_vals)
+    rate = np.zeros(num_theta)
+    for i in range(num_theta):
+        rate[i] = solver.sumTransitionRate(i)
+    # save to file
+    kx = Ellipse.coordinateX(solver.theta_vals, solver.band.a, solver.band.b)
+    ky = Ellipse.coordinateY(solver.theta_vals, solver.band.a, solver.band.b)
+    data = np.stack((solver.theta_vals, kx, ky, rate), axis=0)
+    RW.saveData(data, filename)
+
 def energy(solver):
     if solver.scatterer.type == 'coulomb':
-        filename = 'energy.out'
+        filename = 'energy-coulomb.out'
     elif solver.scatterer.type == 'defect':
-        solver.num_iteration = 1
+        solver.num_iteration = 200
         filename = 'energy-defect.out'
     else: 
         raise ValueError('invalid scattering potential.')
@@ -202,7 +266,7 @@ def energy(solver):
     solver.band.myc = 0.17 # Black Phosphorus
     solver.band.updateEnergyDependentParameters()
     num_grid = 10
-    energy_level = np.linspace(0.5 + 0.01, 0.8, num_grid)*Constant.e/Constant.Ry # eV to AU
+    energy_level = np.linspace(0.5 + 0.01, 0.8, num_grid)*Constant.e/Constant.Eh # eV to AU
     rate_s = np.zeros((9, len(energy_level)), dtype=np.float)
     solver.density_avg.update(1.0, 0.0, 0.0)
     for i in range(len(energy_level)):
@@ -234,10 +298,14 @@ def energy(solver):
 
 def anisotropy(solver):
     if solver.scatterer.type == 'coulomb':
-        filename = 'anisotropy.out'
+        solver.num_iteration = 400
+        filename = 'anisotropy-coulomb.out'
     elif solver.scatterer.type == 'defect':
-        solver.num_iteration = 1
-        filename = 'anisotropy-defect.out'
+        solver.num_iteration = 200
+        if solver.scatterer.sigma > 20.0:
+            filename = 'anisotropy-defect-long.out'
+        else: 
+            filename = 'anisotropy-defect-short.out'
     else: 
         raise ValueError('invalid scattering potential.')
     num_grid = 5
